@@ -15,34 +15,39 @@ class Scheduler {
 public:
     list <IO_Request *> IO_ready_queue;
 
-    virtual IO_Request* dequeue_request(list <IO_Request *> IO_queue);
-    virtual void insert_request(list <IO_Request *> IO_queue, IO_Request *request);
+    virtual IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue) = 0;
 };
 
 
-class FIFO : Scheduler{
+class FIFO : public Scheduler {
+public:
 
+    IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue);
 };
 
 
-class SSTF : Scheduler{
-
+class SSTF : public Scheduler{
+public:
+    IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue);
 };
 
 
 
-class LOOK : Scheduler{
-
+class LOOK : public Scheduler{
+public:
+    IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue) ;
 };
 
 
-class CLOOK : Scheduler{
-
+class CLOOK : public Scheduler{
+public:
+    IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue) ;
 };
 
 
-class FLOOK : Scheduler{
-
+class FLOOK : public Scheduler{
+public:
+    IO_Request* get_next_request(list <IO_Request *> &IO_ready_queue) ;
 };
 
 

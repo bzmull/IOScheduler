@@ -10,13 +10,17 @@ class IO_Request {
 public:
     int arrive_time;
     int track_num;
+    int start_time;
+    int end_time;
+    double turnaround_time;
+    double wait_time;
 
-//summary stats
-    int total_time;
-    int tot_movement;
-    int avg_turnaround;
-    int avg_waittime;
-    int max_waittime;
+////summary stats
+//    int total_time;
+//    int tot_movement;
+//    int avg_turnaround;
+//    int avg_waittime;
+//    int max_waittime;
 
     IO_Request(int arrive_time, int track_num);
 };
