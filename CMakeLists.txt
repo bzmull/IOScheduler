@@ -3,4 +3,4 @@ project(IOScheduler)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(IOScheduler main.cpp IO_Request.cpp)
+add_executable(IOScheduler main.cpp IO_Request.cpp Scheduler.cpp)

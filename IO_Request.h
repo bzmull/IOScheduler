@@ -11,6 +11,13 @@ public:
     int arrive_time;
     int track_num;
 
+//summary stats
+    int total_time;
+    int tot_movement;
+    int avg_turnaround;
+    int avg_waittime;
+    int max_waittime;
+
     IO_Request(int arrive_time, int track_num);
 };
 
