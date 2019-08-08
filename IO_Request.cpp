@@ -11,4 +11,5 @@ IO_Request::IO_Request(int arrive_time, int track_num) {
     end_time = 0;
     turnaround_time = 0;
     wait_time = 0;
+    is_finished = false;
 }

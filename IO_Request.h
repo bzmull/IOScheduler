@@ -8,12 +8,14 @@
 
 class IO_Request {
 public:
+    int IO_num;
     int arrive_time;
     int track_num;
     int start_time;
     int end_time;
     double turnaround_time;
     double wait_time;
+    bool is_finished;
 
 ////summary stats
 //    int total_time;

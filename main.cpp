@@ -14,7 +14,7 @@ using namespace std;
 char linebuf[4096];
 int line_num = 0;
 int CURRENT_TIME = 0;
-int CURRENT_TRACK = 0;
+//int CURRENT_TRACK = 0;
 
 //summary stats
 int total_time = 0;
@@ -30,20 +30,20 @@ char* get_nextline(FILE *&inputfile);
 void save_request_for_summary(IO_Request *active_request, list <IO_Request *> IO_list);
 void move_disk_head(int &current_track, int goal_track);
 void compute_summary_stats(double num_requests);
+void print_function(list <IO_Request *> finished_list);
 
 
 
 int main(int argc, char **argv) {
 
-    bool print_request_operations = false;
-    bool print_head_movement = false;
-    bool print_FLOOK_info = false;
-    int arg_count = 1;
+    bool v_option = false;
+    bool q_option = false;
+    bool f_option = false;
 
     string file_path;
     Scheduler *scheduler;
-
     int option;
+
     if (argc > 1) {
         while ((option = getopt (argc, argv, "s:vqf")) != -1) {
             switch (option) {
@@ -75,93 +75,140 @@ int main(int argc, char **argv) {
                 }
 
                 case 'v': {
-                    print_request_operations = true;
+                    v_option = true;
                     break;
                 }
                 case 'q': {
-                    print_head_movement = true;
+                    q_option = true;
                     break;
                 }
                 case 'f': {
-                    print_FLOOK_info = true;
+                    f_option = true;
                     break;
                 }
             }
         }
-        file_path = argv[arg_count];
+
+        file_path = argv[argc-1];
     }
     else {
-        scheduler = new FIFO();
-        file_path = "./lab4_testdata/TestData/input9";
-        print_request_operations = false;
-        print_head_movement = false;
-        print_FLOOK_info = false;
+        scheduler = new CLOOK();
+        file_path = "./inputs/input0";
+        v_option = true;
+        q_option = false;
+        f_option = false;
     }
 
+    int IO_num = 0;
     list <IO_Request *> IO_list;
     char *input_line;
     FILE *inputfile = fopen(file_path.c_str(), "r");
     while (input_line = get_nextline(inputfile)) {
         IO_Request *new_request = new IO_Request(0,0);
         sscanf(input_line, "%d %d", &new_request->arrive_time, &new_request->track_num);
+        new_request->IO_num = IO_num++;
         IO_list.push_back(new_request);
     }
 
-////    print list of IOs to test:
-//    printf("num requests = <%d>\n", IO_list.size());
-//    int i = 1;
-//    list<IO_Request*>::iterator iter;
-//    for (iter = IO_list.begin(); iter!= IO_list.end(); ++iter) {
-//        printf("IO %d: %d--%d\n", i++, (*iter)->arrive_time, (*iter)->track_num);
-//    }
 
-    //SIMULATION
-//    Scheduler *scheduler = new FIFO();
+/*
+   SIMULATION
+*/
 
-    IO_Request *active_request = nullptr;
+    if (v_option) {
+        printf("TRACE\n");
+    }
+    scheduler->q_option = q_option;
 
     double num_requests = IO_list.size();
-    int IO_num = 0;
+    list <IO_Request *> finished_list = IO_list;
 
-    while ( !IO_list.empty() || !scheduler->IO_ready_queue.empty() || active_request != nullptr) {
+    while ( !IO_list.empty() || !scheduler->IO_ready_queue.empty() || scheduler->active_request != nullptr) {
 
-//#1 in istructions
+//#1 --> add to ready queue
         if (!IO_list.empty()) {
             if (CURRENT_TIME == IO_list.front()->arrive_time) {
                 IO_Request *request = IO_list.front();
                 IO_list.pop_front();
                 scheduler->IO_ready_queue.push_back(request);
+                if(v_option) {
+                    printf("%d:%6d add %d\n", CURRENT_TIME, request->IO_num, request->track_num);
+                }
             }
         }
-        if (active_request != nullptr) {
-//#2 in istructions
-            if (active_request->track_num == CURRENT_TRACK) {
-                active_request->end_time = --CURRENT_TIME;
-                printf("%5d: %5d %5d %5d\n", IO_num++, active_request->arrive_time,
-                        active_request->start_time, active_request->end_time);
-                save_request_for_summary(active_request, IO_list);
-                active_request = nullptr;
+
+        if (scheduler->active_request == nullptr && !scheduler->IO_ready_queue.empty()) {
+            scheduler->active_request = scheduler->get_next_request(scheduler->IO_ready_queue);
+            scheduler->active_request->start_time = CURRENT_TIME;
+            if (v_option) {
+                printf("%d:%6d issue %d %d\n", CURRENT_TIME, scheduler->active_request->IO_num,
+                       scheduler->active_request->track_num, scheduler->CURRENT_TRACK);
             }
-//#3 in istructions
+        }
+//        total_time = CURRENT_TIME;
+//        CURRENT_TIME++;
+
+        if (scheduler->active_request != nullptr) {
+
+//#2 --> finished request
+            if (scheduler->active_request->track_num == scheduler->CURRENT_TRACK) {
+                scheduler->active_request->end_time = CURRENT_TIME;
+                save_request_for_summary(scheduler->active_request, IO_list);
+                if (v_option) {
+                    printf("%d:%6d finish %.0f\n", CURRENT_TIME, scheduler->active_request->IO_num,
+                           scheduler->active_request->turnaround_time);
+//                    printf("CURRENT TRACK = <%d>\n READY QUEUE = <", scheduler->CURRENT_TRACK);
+//                    list<IO_Request *>::iterator iter;
+//                    for (iter=finished_list.begin(); iter!=finished_list.end(); ++iter) {
+//                        printf("%d, ", (*iter)->IO_num);
+//                    }
+//                    printf(">\n");
+                }
+                scheduler->active_request->is_finished = true;
+                scheduler->active_request = nullptr;
+                continue;
+            }
+
+//#3 --> moving head to necessary track
             else {
-                move_disk_head(CURRENT_TRACK, active_request->track_num);
+                move_disk_head(scheduler->CURRENT_TRACK, scheduler->active_request->track_num);
             }
         }
-//#4 in istructions
-        if (active_request == nullptr && !scheduler->IO_ready_queue.empty()) {
-            active_request = scheduler->get_next_request(scheduler->IO_ready_queue);
-            active_request->start_time = CURRENT_TIME;
-        }
-        total_time = CURRENT_TIME;
+
+//#4 --> make new active request
+//        if (scheduler->active_request == nullptr && !scheduler->IO_ready_queue.empty()) {
+//            scheduler->active_request = scheduler->get_next_request(scheduler->IO_ready_queue);
+//            scheduler->active_request->start_time = CURRENT_TIME;
+//            if (v_option) {
+//                printf("%d:%6d issue %d %d\n", CURRENT_TIME, scheduler->active_request->IO_num,
+//                        scheduler->active_request->track_num, scheduler->CURRENT_TRACK);
+//            }
+//        }
+//        total_time = CURRENT_TIME;
         CURRENT_TIME++;
+        total_time = CURRENT_TIME;
     }
 
     compute_summary_stats(num_requests);
-    printf("SUM: %d %d %.2lf %.2lf %d\n",
-           total_time, tot_movement, avg_turnaround, avg_waittime, max_waittime);
+    print_function(finished_list);
 
 
     return 0;
+}
+
+
+
+void print_function(list <IO_Request *> finished_list) {
+    int IO_num = 0;
+    list <IO_Request *>::iterator iter;
+
+    for (iter=finished_list.begin(); iter!=finished_list.end(); ++iter) {
+        printf("%5d: %5d %5d %5d\n", IO_num++, (*iter)->arrive_time,
+                (*iter)->start_time, (*iter)->end_time);
+    }
+
+    printf("SUM: %d %d %.2lf %.2lf %d\n",
+           total_time, tot_movement, avg_turnaround, avg_waittime, max_waittime);
 }
 
 
@@ -171,8 +218,8 @@ char* get_nextline(FILE *&inputfile)
     char* rstr;
     while (1) {
         rstr = fgets(linebuf,4096,inputfile);
-        if (rstr==NULL)
-            return NULL;
+        if (rstr== nullptr)
+            return nullptr;
         line_num++;
         if (*rstr == '#')
             continue;
