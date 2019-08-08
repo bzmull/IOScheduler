@@ -14,7 +14,8 @@ using namespace std;
 class Scheduler {
 public:
     list <IO_Request *> IO_ready_queue;
-    list <IO_Request *> seek_options;
+    list <IO_Request *> IO_add_queue;
+    int which_queue;
     IO_Request *active_request;
     int CURRENT_TRACK;
     int head_direction;

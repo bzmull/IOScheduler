@@ -31,6 +31,7 @@ void save_request_for_summary(IO_Request *active_request, list <IO_Request *> IO
 void move_disk_head(int &current_track, int goal_track);
 void compute_summary_stats(double num_requests);
 void print_function(list <IO_Request *> finished_list);
+bool lists_empty(Scheduler *scheduler, bool do_FLOOK);
 
 
 
@@ -40,6 +41,7 @@ int main(int argc, char **argv) {
     bool q_option = false;
     bool f_option = false;
 
+    bool do_FLOOK = false;
     string file_path;
     Scheduler *scheduler;
     int option;
@@ -67,6 +69,7 @@ int main(int argc, char **argv) {
                         }
                         case 'f': {
                             scheduler = new FLOOK();
+                            do_FLOOK = true;
                             break;
                         }
 
@@ -92,7 +95,7 @@ int main(int argc, char **argv) {
         file_path = argv[argc-1];
     }
     else {
-        scheduler = new CLOOK();
+        scheduler = new FLOOK();
         file_path = "./inputs/input0";
         v_option = true;
         q_option = false;
@@ -123,7 +126,7 @@ int main(int argc, char **argv) {
     double num_requests = IO_list.size();
     list <IO_Request *> finished_list = IO_list;
 
-    while ( !IO_list.empty() || !scheduler->IO_ready_queue.empty() || scheduler->active_request != nullptr) {
+    while ( !IO_list.empty() || !lists_empty(scheduler, do_FLOOK) || scheduler->active_request != nullptr) {
 
 //#1 --> add to ready queue
         if (!IO_list.empty()) {
@@ -137,9 +140,25 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (scheduler->active_request == nullptr && !scheduler->IO_ready_queue.empty()) {
+        if (scheduler->active_request == nullptr && !lists_empty(scheduler, do_FLOOK)) {
             scheduler->active_request = scheduler->get_next_request(scheduler->IO_ready_queue);
             scheduler->active_request->start_time = CURRENT_TIME;
+//            if (q_option && do_FLOOK) {
+//                list <IO_Request *>::iterator iter1;
+//                list <IO_Request *>::iterator iter2;
+//                printf("ready_queue --> ");
+//                for (iter1=scheduler->IO_ready_queue.begin(); iter1!=scheduler->IO_ready_queue.end(); ++iter1) {
+//                    printf("%d:%d ", (*iter1)->IO_num, (*iter1)->track_num);
+//                }
+//                printf("\nadd_queue --> ");
+//                for (iter2=scheduler->IO_add_queue.begin(); iter2!=scheduler->IO_add_queue.end(); ++iter2) {
+//                    printf("%d:%d ", (*iter2)->IO_num, (*iter2)->track_num);
+//                }
+//                printf("\n");
+//            }
+            if (f_option) {
+                printf("%d get Q=%d\n", scheduler->active_request->IO_num, scheduler->which_queue);
+            }
             if (v_option) {
                 printf("%d:%6d issue %d %d\n", CURRENT_TIME, scheduler->active_request->IO_num,
                        scheduler->active_request->track_num, scheduler->CURRENT_TRACK);
@@ -194,6 +213,17 @@ int main(int argc, char **argv) {
 
 
     return 0;
+}
+
+
+
+bool lists_empty(Scheduler *scheduler, bool do_FLOOK) {
+    if (do_FLOOK) {
+        return scheduler->IO_ready_queue.empty() && scheduler->IO_add_queue.empty();
+    }
+    else {
+        return scheduler->IO_ready_queue.empty();
+    }
 }
 
 

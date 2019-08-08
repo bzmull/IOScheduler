@@ -12,6 +12,7 @@ Scheduler::Scheduler() {
     CURRENT_TRACK = 0;
     head_direction = 0;
     change_direction = true;
+    which_queue = 1;
 }
 
 
@@ -41,12 +42,10 @@ IO_Request *SSTF::get_next_request(list<IO_Request *> &IO_ready_queue) {
 }
 
 IO_Request *LOOK::get_next_request(list<IO_Request *> &IO_ready_queue) {
-    seek_options.clear();
     bool initiate_break = false;
 
     list<IO_Request *>::iterator iter;
     IO_Request *request = IO_ready_queue.front();
-
     if (head_direction==0) {
         if (request->track_num < CURRENT_TRACK) {
             head_direction = -1;
@@ -168,5 +167,97 @@ IO_Request *CLOOK::get_next_request(list<IO_Request *> &IO_ready_queue) {
 }
 
 IO_Request *FLOOK::get_next_request(list<IO_Request *> &IO_ready_queue) {
+    if (IO_add_queue.empty()) {
+        IO_add_queue.swap(IO_ready_queue);
+        which_queue = which_queue * -1;
+    }
+    if (IO_add_queue.empty()) {
+        return nullptr;
+    }
 
+    bool initiate_break = false;
+
+    list<IO_Request *>::iterator iter;
+    IO_Request *request = IO_add_queue.front();
+    if (head_direction==0) {
+        if (request->track_num < CURRENT_TRACK) {
+            head_direction = -1;
+        }
+        else if (request->track_num > CURRENT_TRACK) {
+            head_direction = 1;
+        }
+    }
+//    if (q_option) {
+//        printf("Get: (");
+//    }
+    int current_seek_time = 1000000;
+    for (int i=0; i<2; i++) {
+
+        if (head_direction == -1) {
+            list<IO_Request *>::iterator iter;
+            for (iter = IO_add_queue.begin(); iter != IO_add_queue.end(); ++iter) {
+                if ((*iter)->track_num <= CURRENT_TRACK) {
+                    change_direction = false;
+//                    current_seek_time = request->track_num - CURRENT_TRACK;
+                    int new_seek_time = (*iter)->track_num - CURRENT_TRACK;
+//                    if (q_option) {
+//                        printf("%d:%d ", (*iter)->IO_num, abs(new_seek_time));
+//                    }
+                    if (abs(new_seek_time) < abs(current_seek_time) && !request->is_finished) {
+                        request = *iter;
+                        current_seek_time = new_seek_time;
+                    }
+                    initiate_break = true;
+                }
+            }
+        }
+        else if (head_direction == 1) {
+            list<IO_Request *>::iterator iter;
+            for (iter = IO_add_queue.begin(); iter != IO_add_queue.end(); ++iter) {
+                if ((*iter)->track_num >= CURRENT_TRACK) {
+                    change_direction = false;
+                    int new_seek_time = (*iter)->track_num - CURRENT_TRACK;
+//                    if (q_option) {
+//                        printf("%d:%d ", (*iter)->IO_num, abs(new_seek_time));
+//                    }
+                    if (abs(new_seek_time) < abs(current_seek_time) && !request->is_finished) {
+                        request = *iter;
+                        current_seek_time = new_seek_time;
+                    }
+                    initiate_break = true;
+                }
+            }
+        }
+        if (initiate_break) {
+            break;
+        }
+        if (change_direction) {
+            head_direction = head_direction * -1;
+//            if (q_option) {
+//                printf("Get: () --> change direction to %d\n", head_direction);
+//            }
+        }
+    }
+    if (q_option) {
+        list <IO_Request *>::iterator iter1;
+        list <IO_Request *>::iterator iter2;
+        printf("ready_queue --> ");
+        for (iter1=IO_ready_queue.begin(); iter1!=IO_ready_queue.end(); ++iter1) {
+            printf("%d:%d ", (*iter1)->IO_num, (*iter1)->track_num);
+        }
+        printf("\nadd_queue --> ");
+        for (iter2=IO_add_queue.begin(); iter2!=IO_add_queue.end(); ++iter2) {
+            printf("%d:%d ", (*iter2)->IO_num, (*iter2)->track_num);
+        }
+        printf("\n");
+    }
+    IO_add_queue.remove(request);
+//    if (q_option) {
+//        printf(") --> %d dir=%d\n", request->IO_num, head_direction);
+//    }
+//    if (q_option && change_direction) {
+//        printf("Get: () --> change direction to %d\n", head_direction);
+//    }
+    change_direction = true;
+    return request;
 }
